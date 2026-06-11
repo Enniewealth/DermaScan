@@ -2,7 +2,8 @@
 // DermaScan — Central API Client
 // ============================================
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+// Use environment variable for API URL in production, fallback to localhost for local development
+const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`;
 
 function getHeaders(isMultipart = false): HeadersInit {
   const headers: Record<string, string> = {};
