@@ -265,7 +265,7 @@ export default function Home() {
                 >
                   <div style={{ height: '110px', borderRadius: '12px', overflow: 'hidden', background: '#E5E7EB', position: 'relative' }}>
                     <img
-                      src={scan.imageUrl.startsWith('http') ? scan.imageUrl : `http://${window.location.hostname}:8000${scan.imageUrl}`}
+                      src={scan.imageUrl.startsWith('http') ? scan.imageUrl : `http://127.0.0.1:8000${scan.imageUrl}`}
                       alt={scan.condition.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />

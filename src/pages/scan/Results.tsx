@@ -6,6 +6,8 @@ import Button from '../../components/ui/Button';
 import { api } from '../../services/api';
 import type { ScanResult } from '../../types';
 
+const BACKEND_HOST = 'http://127.0.0.1:8000';
+
 // Yoruba (YO), Hausa (HA), Igbo (IG) translation mock dictionary for clinical descriptions
 const TRANSLATIONS: Record<string, Record<'EN' | 'YO' | 'HA' | 'IG', string>> = {
   eczema: {
@@ -175,7 +177,7 @@ export default function Results() {
         <Card variant="default" padding="sm" style={{ border: 'none', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden', background: '#e5e7eb' }}>
             <img
-              src={scan.imageUrl.startsWith('http') ? scan.imageUrl : `http://${window.location.hostname}:8000${scan.imageUrl}`}
+              src={scan.imageUrl.startsWith('http') ? scan.imageUrl : `${BACKEND_HOST}${scan.imageUrl}`}
               alt="Scan capture"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
