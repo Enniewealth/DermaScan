@@ -185,49 +185,6 @@ export default function Scanner() {
   }, [capturedImage, cameraActive, cameraError, startCamera]);
 
   return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.88)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-        }}
-      >
-        <style>{`
-          @keyframes scannerPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.12); opacity: 0.55; }
-          }
-        `}</style>
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            border: '4px solid #0d6b5e',
-            animation: 'scannerPulse 1.4s ease-in-out infinite',
-          }}
-        />
-        <p
-          style={{
-            marginTop: 28,
-            fontSize: 17,
-            fontWeight: 600,
-            color: '#f9f5ef',
-            letterSpacing: '0.02em',
-          }}
-        >
-          Analysing your skin...
-        </p>
-      </div>
-    );
-  }
-
-  return (
     <div
       style={{
         width: '100%',
