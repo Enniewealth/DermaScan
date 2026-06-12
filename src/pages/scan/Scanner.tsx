@@ -158,7 +158,7 @@ export default function Scanner() {
     [stopCamera],
   );
 
-  const handleAnalyse = useCallback(async () => {
+  const handleAnalyse = useCallback(() => {
     if (!capturedImage) return;
 
     if (isOffline) {
@@ -167,25 +167,12 @@ export default function Scanner() {
       return;
     }
 
-    setLoading(true);
-    setApiError('');
-
-    try {
-      const result = await api.post<any>('/scan/analyse', {
-        image: capturedImage,
-        user_id: user?.id || 'current_user',
-      });
-
-      navigate(`/scan/results/${result.id}`, {
-        state: { scanResult: result },
-        replace: true,
-      });
-    } catch (err: any) {
-      setApiError(err.message || 'Analysis failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [capturedImage, isOffline, queueScan, navigate, user?.id]);
+    // Navigate to the beautiful Analyzing screen which handles the API call properly
+    navigate('/scan/analyzing', {
+      state: { capturedImage, symptoms: '' },
+      replace: true,
+    });
+  }, [capturedImage, isOffline, queueScan, navigate]);
 
   const handleRetake = useCallback(() => {
     setCapturedImage(null);
