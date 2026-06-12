@@ -6,13 +6,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Zap, ZapOff } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../contexts/OfflineContext';
-import { api } from '../../services/api';
 
 export default function Scanner() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { isOffline, queueScan } = useOffline();
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -23,7 +20,6 @@ export default function Scanner() {
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
@@ -183,19 +179,12 @@ export default function Scanner() {
   }, []);
 
   useEffect(() => {
-    if (!capturedImage) {
+    if (!capturedImage && !cameraActive && !cameraError) {
       startCamera();
     }
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-    };
-  }, [startCamera, capturedImage]);
+  }, [capturedImage, cameraActive, cameraError, startCamera]);
 
-  if (loading) {
-    return (
+  return (
       <div
         style={{
           position: 'fixed',

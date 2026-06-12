@@ -89,6 +89,68 @@ The "suggested_replies" field should contain 2-3 contextual quick-reply suggesti
 The "escalation" field should be null unless you detect severity requiring professional attention.
 """
 
+DERM_SYSTEM_PROMPT += """
+
+CONVERSATION INTELLIGENCE RULES
+=================================
+
+RULE 1 — NEVER ASK FOR INFORMATION ALREADY GIVEN:
+Before responding, scan the full conversation history for information already provided:
+  - Body location (arm, face, knee, back, etc.)
+  - Duration (days, weeks, months)
+  - Symptoms (itchy, painful, burning, spreading)
+  - Appearance (patches, bumps, spots, rash, ring)
+
+If already provided: extract and use it. Do NOT ask for it again.
+
+CORRECT example:
+User: "patches, the back of my knee, three weeks, it is itchy"
+Response: Jump straight to assessment.
+Location = back of knee ✓
+Duration = three weeks ✓
+Symptom = itchy patches ✓
+This is enough to give a focused assessment.
+
+WRONG example:
+User: same message above
+Response: "Where exactly is the rash? How long have you had it?"
+This is wrong. Never do this.
+
+---
+
+RULE 2 — NEVER REPEAT THE SAME RESPONSE:
+Read the conversation history before every response. If you gave a response in a previous turn, do not repeat it. Always build the conversation forward.
+
+---
+
+RULE 3 — PROGRESSIVE ASSESSMENT MODEL:
+Turn 1: Gather only what is genuinely missing
+Turn 2: Give initial assessment based on what you know
+Turn 3+: Refine, answer follow-ups, escalate if needed
+
+Never stay on Turn 1 behaviour after the user has provided symptoms.
+
+---
+
+RULE 4 — ONE QUESTION MAXIMUM PER TURN:
+If you need clarification, ask ONE question only. Never list multiple questions at once. Choose the single most important missing piece of information.
+
+---
+
+RULE 5 — NO MID-CONVERSATION GREETINGS:
+Never say "Thanks for reaching out" or "I'm here to help" or "I'm ready to help" after the first message. These are opening lines only. After message 1, go straight to the response.
+
+---
+
+RULE 6 — EXTRACT BEFORE ASKING:
+Minimum information needed for initial assessment:
+  - At least one symptom type AND
+  - Body location OR duration
+If you have both → give assessment now.
+If you are missing both → ask for symptoms first.
+If you have symptoms but no location → ask location only.
+"""
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MOCK RESPONSES (when no Gemini API key)
@@ -157,8 +219,67 @@ MOCK_RESPONSES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _match_mock_response(message: str, scan_context: Optional[Dict] = None, language: str = "EN") -> str:
-    """Match user message to the best mock response key."""
+def _extract_info_from_history(history: List[Dict]) -> Dict[str, Optional[str]]:
+    """Extract location, duration, symptoms, appearance from conversation history."""
+    extracted = {
+        "location": None,
+        "duration": None,
+        "symptoms": [],
+        "appearance": [],
+    }
+
+    body_parts = [
+        "arm", "elbow", "wrist", "hand", "finger",
+        "leg", "knee", "ankle", "foot", "toe", "thigh", "calf",
+        "face", "forehead", "cheek", "chin", "nose", "lip", "eye",
+        "neck", "shoulder", "chest", "back", "stomach", "waist",
+        "scalp", "ear", "groin", "buttock",
+    ]
+    duration_words = [
+        "day", "days", "week", "weeks", "month", "months", "year", "years",
+        "today", "yesterday", "morning", "evening",
+    ]
+    symptom_words = [
+        "itch", "itchy", "itching", "pain", "painful", "burning", "burn",
+        "stinging", "tingling", "numb", "swelling", "swollen", "dry",
+        "peeling", "flaking", "cracking", "oozing", "weeping", "bleeding",
+        "sore", "tender", "throbbing", "warm", "hot",
+    ]
+    appearance_words = [
+        "patch", "patches", "bump", "bumps", "spot", "spots", "rash",
+        "ring", "rings", "blister", "blisters", "pimple", "pimples",
+        "lump", "scale", "scales", "scab", "mark", "marks", "lesion",
+        "mole", "dot", "dots", "line", "lines", "streak",
+    ]
+
+    for msg in history:
+        content = msg.get("content", "").lower()
+        for part in body_parts:
+            if part in content and not extracted["location"]:
+                extracted["location"] = part
+        for word in duration_words:
+            if word in content and not extracted["duration"]:
+                extracted["duration"] = word
+        for word in symptom_words:
+            if word in content and word not in extracted["symptoms"]:
+                extracted["symptoms"].append(word)
+        for word in appearance_words:
+            if word in content and word not in extracted["appearance"]:
+                extracted["appearance"].append(word)
+
+    return extracted
+
+
+def _match_mock_response(
+    message: str,
+    scan_context: Optional[Dict] = None,
+    language: str = "EN",
+    history: List[Dict] = None,
+) -> str:
+    """Match user message to the best mock response key, using conversation history."""
+    if history is None:
+        history = []
+
     msg = message.lower().strip()
 
     # Check for Yoruba
@@ -166,24 +287,17 @@ def _match_mock_response(message: str, scan_context: Optional[Dict] = None, lang
         return "yoruba_greeting"
 
     # Check for scan context
-    if scan_context and scan_context.get("condition"):
+    if scan_context and scan_context.get("condition") and len(history) <= 1:
         return "scan_context_eczema"
 
-    # Greetings
-    if any(w in msg for w in ["hi", "hello", "hey", "good morning", "good afternoon", "help"]):
+    # Extract info from full history (including current message)
+    all_history = list(history) + [{"role": "user", "content": message}]
+    info = _extract_info_from_history(all_history)
+    has_rich_info = info["location"] and info["symptoms"]
+
+    # Greetings (only on first message with no prior history)
+    if len(history) <= 1 and any(w in msg for w in ["hi", "hello", "hey", "good morning", "good afternoon"]):
         return "greeting"
-
-    # Eczema
-    if any(w in msg for w in ["eczema", "atopic", "dry skin", "itchy patch", "itching patch"]):
-        return "eczema"
-
-    # Acne
-    if any(w in msg for w in ["acne", "pimple", "pimples", "breakout", "spots on face", "bumps on face"]):
-        return "acne"
-
-    # Dark spots / hyperpigmentation
-    if any(w in msg for w in ["dark spot", "dark marks", "hyperpigmentation", "black spot", "uneven tone", "dark patches"]):
-        return "dark_spots"
 
     # Bleaching / lightening
     if any(w in msg for w in ["bleach", "lighten", "toning cream", "glow", "fair", "lighter skin", "bleaching"]):
@@ -193,13 +307,37 @@ def _match_mock_response(message: str, scan_context: Optional[Dict] = None, lang
     if any(w in msg for w in ["contagious", "spread", "catch", "infectious"]):
         return "contagious"
 
-    # Rash / general symptom
-    if any(w in msg for w in ["rash", "bump", "itch", "irritation", "swelling", "red", "sore"]):
-        return "rash"
+    # Dark spots / hyperpigmentation
+    if any(w in msg for w in ["dark spot", "dark marks", "hyperpigmentation", "black spot", "uneven tone"]):
+        return "dark_spots"
+
+    # Eczema keywords
+    if any(w in msg for w in ["eczema", "atopic", "dry skin"]):
+        return "eczema"
+
+    # Acne
+    if any(w in msg for w in ["acne", "pimple", "pimples", "breakout", "spots on face", "bumps on face"]):
+        return "acne"
 
     # Severe / urgent
     if any(w in msg for w in ["spreading", "weeping", "pus", "fever", "infected", "severe", "emergency", "urgent", "worse"]):
         return "severe_condition"
+
+    # Short generic follow-ups after rich info was already provided
+    if has_rich_info and len(msg.split()) <= 2:
+        return "scan_context_eczema"
+
+    # First messages with very little info → give a targeted ask
+    if len(history) <= 1 and not has_rich_info:
+        return "rash"
+
+    # Rich info provided → give assessment
+    if has_rich_info:
+        return "scan_context_eczema"
+
+    # Fallback: progressive — if they've provided partial info
+    if info["symptoms"]:
+        return "rash"
 
     return "default"
 
@@ -224,20 +362,40 @@ async def get_derm_response(
         except Exception as e:
             print(f"Gemini chat failed: {e}. Falling back to mock.")
 
-    # Mock fallback
-    key = _match_mock_response(message, scan_context, language)
-    response = MOCK_RESPONSES[key].copy()
+    # Mock fallback — now uses conversation history
+    key = _match_mock_response(message, scan_context, language, history)
 
-    # Voice mode adaptation
+    # Build a dynamic response if user already provided rich info
+    all_history = list(history) + [{"role": "user", "content": message}]
+    info = _extract_info_from_history(all_history)
+    has_rich_info = info["location"] and info["symptoms"]
+
+    if key == "scan_context_eczema" and has_rich_info and not scan_context:
+        # Dynamic assessment based on extracted info
+        location = info["location"] or "affected area"
+        symptom_list = ", ".join(info["symptoms"][:3]) if info["symptoms"] else "irritated"
+        duration = info["duration"] or "some time"
+
+        response = {
+            "reply": f"Based on what you've told me — {symptom_list} on your **{location}** that's been present for **{duration}** — this sounds most like **eczema (atopic dermatitis)** or possibly **contact dermatitis**.\n\n**Eczema** often presents as dry, itchy patches and can flare in Nigeria's Harmattan or humid shifts. On melanin-rich skin, it may appear as darker or greyish patches rather than the typical redness.\n\n**What to do now:**\n1. Apply a thick emollient (like shea butter or petroleum jelly) after bathing\n2. Use gentle, fragrance-free cleansers — avoid harsh antiseptic soaps\n3. Try an OTC **hydrocortisone 1% cream** from your pharmacy for 5-7 days for the itching\n4. Avoid scratching — this can cause **post-inflammatory hyperpigmentation** (dark marks)\n\nIf it doesn't improve in 2 weeks, or starts weeping/spreading, see a dermatologist.",
+            "suggested_replies": ["What triggers eczema?", "Will it leave dark marks?", "What cream can I buy?"],
+            "escalation": None,
+        }
+        return _apply_mode(response, mode)
+
+    response = MOCK_RESPONSES[key].copy()
+    return _apply_mode(response, mode)
+
+
+def _apply_mode(response: Dict, mode: str) -> Dict:
+    """Apply voice mode formatting to a response."""
     if mode == "voice":
+        response = response.copy()
         reply = response["reply"]
-        # Strip markdown bold for voice
         reply = reply.replace("**", "")
-        # Strip numbered lists formatting for natural speech
         reply = reply.replace("1. ", "First, ").replace("2. ", "Also, ").replace("3. ", "And, ").replace("4. ", "Finally, ").replace("5. ", "Lastly, ")
         response["reply"] = reply
         response["suggested_replies"] = response["suggested_replies"][:2]
-
     return response
 
 
@@ -267,11 +425,16 @@ async def _gemini_response(
     # Build conversation history for Gemini
     contents = []
 
-    for msg in history[-10:]:  # Keep last 10 messages for context
+    for msg in history:
         role = "user" if msg["role"] == "user" else "model"
+
+        # Gemini requires the conversation to start with 'user'
+        if not contents and role == "model":
+            continue  # Skip assistant messages at the very start
+
         contents.append({"role": role, "parts": [msg["content"]]})
 
-    # Add current user message
+    # Add current user message as a new user turn
     contents.append({"role": "user", "parts": [message]})
 
     model = genai.GenerativeModel(

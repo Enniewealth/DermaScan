@@ -72,6 +72,7 @@ export default function DermChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
 
   // State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -82,6 +83,11 @@ export default function DermChat() {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Parse scan context from URL params
   useEffect(() => {
@@ -143,8 +149,9 @@ export default function DermChat() {
       imageUrl: attachedImage || undefined,
     };
 
+    const loadingId = generateId();
     const loadingMessage: ChatMessage = {
-      id: generateId(),
+      id: loadingId,
       role: 'derm',
       content: '',
       timestamp: new Date(),
@@ -156,10 +163,16 @@ export default function DermChat() {
     setAttachedImage(null);
     setIsTyping(true);
 
-    // Build history for API
-    const history = messages
+    // Build full history from ref (not stale state), ending with current user message
+    const currentHistory = messagesRef.current
       .filter((m) => !m.isLoading)
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => ({
+        role: m.role === 'derm' ? 'assistant' : m.role,
+        content: m.content,
+      }));
+
+    // Append current user message so history always ends with the latest user input
+    currentHistory.push({ role: 'user', content: text.trim() });
 
     try {
       const response = await api.post<{
@@ -170,7 +183,7 @@ export default function DermChat() {
         message: text.trim(),
         language,
         scan_context: scanContext,
-        history,
+        history: currentHistory,
         mode: 'text',
       }, 30000);
 
@@ -184,7 +197,7 @@ export default function DermChat() {
       };
 
       setMessages((prev) =>
-        prev.map((m) => (m.isLoading ? dermReply : m))
+        prev.map((m) => (m.id === loadingId ? dermReply : m))
       );
     } catch {
       const errorReply: ChatMessage = {
@@ -195,12 +208,12 @@ export default function DermChat() {
         suggestedReplies: ['Try again', 'Scan my skin'],
       };
       setMessages((prev) =>
-        prev.map((m) => (m.isLoading ? errorReply : m))
+        prev.map((m) => (m.id === loadingId ? errorReply : m))
       );
     } finally {
       setIsTyping(false);
     }
-  }, [messages, language, scanContext, attachedImage]);
+  }, [language, scanContext, attachedImage]);
 
   // ── Handle Submit ───────────────────────
 
