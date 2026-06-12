@@ -46,6 +46,26 @@ app.include_router(routine.router, prefix="/api")
 app.include_router(products.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 
+# Keep-alive ping to prevent Render free tier spin-down
+import httpx
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+KEEP_ALIVE_URL = os.getenv("APP_URL", "http://localhost:8000")
+
+scheduler = AsyncIOScheduler()
+
+@scheduler.scheduled_job('interval', minutes=10)
+async def keep_alive():
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.get(f"{KEEP_ALIVE_URL}/health")
+    except Exception:
+        pass  # Silently ignore keep-alive failures
+
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler.start()
+
 
 @app.get("/")
 def read_root():
