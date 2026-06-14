@@ -26,20 +26,26 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 async def upload_image(file: UploadFile) -> str:
     """
-    Uploads an image file to Cloudinary. 
-    If Cloudinary is not configured, saves the file locally in static directory and returns local URL.
+    Uploads an image file to Cloudinary.
+    Automatically compresses large images. Falls back to local storage if needed.
     """
     if is_cloudinary_configured:
         try:
-            # Read bytes of file
             contents = await file.read()
-            # Upload to Cloudinary
+            await file.seek(0)
+
+            upload_options = {
+                "folder": "dermascan",
+                "resource_type": "image",
+                "transformation": [
+                    {"quality": "auto", "fetch_format": "auto"}
+                ]
+            }
+
             response = cloudinary.uploader.upload(
                 contents,
-                folder="dermascan",
-                resource_type="image"
+                **upload_options
             )
-            # Reset file pointer for any subsequent reads
             await file.seek(0)
             return response.get("secure_url")
         except Exception as e:
