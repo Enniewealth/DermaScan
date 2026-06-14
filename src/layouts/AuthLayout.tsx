@@ -4,16 +4,17 @@
 
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import { api } from '../services/api';
 
 export default function AuthLayout() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
 
-  // Warm up Render backend on auth pages (handles free tier cold start)
+  // Warm up Render backend on auth pages — non-blocking, 3s timeout
   useEffect(() => {
     if (!isLandingPage) {
-      api.get('/health').catch(() => {});
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 3000);
+      fetch('https://dermascan-5.onrender.com/health', { signal: ctrl.signal }).catch(() => {});
     }
   }, []);
 
