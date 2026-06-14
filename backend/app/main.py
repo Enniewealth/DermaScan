@@ -65,6 +65,12 @@ async def keep_alive():
 @app.on_event("startup")
 async def start_scheduler():
     scheduler.start()
+    try:
+        import google.generativeai as genai
+        test_model = genai.GenerativeModel("gemini-3.5-flash")
+        print("gemini-3.5-flash loaded OK")
+    except Exception as e:
+        print(f"Gemini model error: {e}")
 
 
 @app.get("/")

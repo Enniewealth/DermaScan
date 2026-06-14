@@ -595,14 +595,14 @@ async def _gemini_response(
     }
 
     generation_config = genai.GenerationConfig(
-        temperature=0.4,
-        top_p=0.8,
+        temperature=0.3,
+        top_p=0.85,
         top_k=40,
-        max_output_tokens=1000,
+        max_output_tokens=1500,
     )
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
+        model_name="gemini-3.5-flash",
         generation_config=generation_config,
         safety_settings=safety_settings,
     )

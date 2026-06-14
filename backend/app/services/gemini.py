@@ -197,7 +197,7 @@ async def analyze_skin_image(file: UploadFile, symptoms: str) -> Dict[str, Any]:
             }}
             """
             
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-3.5-flash")
             
             contents = [
                 {"mime_type": file.content_type, "data": image_data},
