@@ -46,8 +46,8 @@ async function handleResponse(response: Response) {
   return response.json();
 }
 
-const DEFAULT_TIMEOUT = 5000; // 5 seconds
-const UPLOAD_TIMEOUT = 30000;  // 30 seconds
+const DEFAULT_TIMEOUT = 30000; // 30 seconds (handles Render cold start)
+const UPLOAD_TIMEOUT = 60000;  // 60 seconds for image uploads
 
 async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number }): Promise<Response> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options;

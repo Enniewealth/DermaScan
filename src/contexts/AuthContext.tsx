@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setIsProcessing(true);
     try {
-      const data = await api.post<{ accessToken: string; tokenType: string; userId: string }>('/auth/login', { email, password }, 20000);
+      const data = await api.post<{ accessToken: string; tokenType: string; userId: string }>('/auth/login', { email, password }, 45000);
       localStorage.setItem('dermascan_token', data.accessToken);
       const userProfile = await api.get<User>('/users/me');
       setUser(userProfile);
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = useCallback(async (fullName: string, email: string, password: string) => {
     setIsProcessing(true);
     try {
-      const data = await api.post<{ accessToken: string; tokenType: string; userId: string }>('/auth/signup', { fullName, email, password }, 20000);
+      const data = await api.post<{ accessToken: string; tokenType: string; userId: string }>('/auth/signup', { fullName, email, password }, 45000);
       localStorage.setItem('dermascan_token', data.accessToken);
       const userProfile = await api.get<User>('/users/me');
       setUser(userProfile);

@@ -3,10 +3,19 @@
 // ============================================
 
 import { Outlet, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { api } from '../services/api';
 
 export default function AuthLayout() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
+
+  // Warm up Render backend on auth pages (handles free tier cold start)
+  useEffect(() => {
+    if (!isLandingPage) {
+      api.get('/health').catch(() => {});
+    }
+  }, []);
 
   // Standalone full-width layout for the main landing page
   if (isLandingPage) {
