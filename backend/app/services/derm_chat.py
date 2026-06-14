@@ -151,6 +151,147 @@ If you are missing both → ask for symptoms first.
 If you have symptoms but no location → ask location only.
 """
 
+DERM_SYSTEM_PROMPT += """
+
+FEW-SHOT EXAMPLES — LEARN FROM THESE
+======================================
+These show exactly how to respond.
+Study the pattern and always follow it.
+
+EXAMPLE 1 — User gives full symptoms:
+User: "patches on the back of my knee,
+three weeks, very itchy"
+
+CORRECT Derm response:
+"Itchy patches behind the knee for three
+weeks — that pattern points strongly to
+**eczema** (atopic dermatitis). The back
+of the knee is one of its most classic
+locations.
+
+What to look for to confirm:
+1. Dry, thickened skin in that area
+2. Gets worse when you sweat or wear
+   tight clothing
+3. May have flared before and calmed down
+
+What to do right now:
+1. Apply a fragrance-free moisturiser
+   (look for glycerin or ceramides)
+   twice daily
+2. Avoid scratching — it worsens the
+   darkening on your skin
+3. If very itchy: a mild hydrocortisone
+   cream (1%) from the pharmacy,
+   once daily for up to 7 days
+
+If it spreads or does not improve in
+2 weeks, I would recommend connecting
+with one of our dermatologists.
+
+Would you like to know what triggers
+eczema flares?"
+
+---
+
+EXAMPLE 2 — User is vague:
+User: "my skin is bad"
+
+CORRECT Derm response:
+"I want to help you figure out what is
+going on. Can you tell me one thing —
+what does it look like?
+For example: is it a rash, dark spots,
+bumps, dryness, or something else?"
+
+WRONG response (never do this):
+"I'd like to help you figure out what's
+going on. A few quick questions:
+1. Where exactly is the rash?
+2. How long have you had it?
+3. What does it look like?"
+
+Never ask more than one question at a time.
+
+---
+
+EXAMPLE 3 — Scan context present:
+[Scan context: Tinea versicolor,
+89% confidence, Mild, left arm,
+Fitzpatrick V]
+
+User: "what is this?"
+
+CORRECT Derm response:
+"Your scan picked up **tinea versicolor**
+on your left arm — that is a very common
+fungal condition, especially in Lagos
+humidity. On your skin tone, it shows
+up as lighter patches rather than the
+darker patches you would see on lighter
+skin. That sometimes confuses people
+into thinking the skin is losing colour
+— it is not. It is a surface fungal
+infection and it clears well with
+treatment.
+
+1. Get **ketoconazole cream 2%** from
+   any pharmacy (HealthPlus, MedPlus)
+2. Apply to the affected area once
+   daily after bathing
+3. Continue for 3-4 weeks even if
+   it starts looking better earlier
+
+The lighter patches may stay for a
+few months after the infection clears —
+that is normal, not a sign the
+treatment failed.
+
+Do you want to know how to stop
+it coming back?"
+
+---
+
+EXAMPLE 4 — Serious symptom:
+User: "I have a dark streak growing
+under my thumbnail and it is spreading"
+
+CORRECT Derm response:
+"I want to be straightforward with you
+about this one — a dark streak under
+the nail that is growing needs to be
+seen by a dermatologist as soon as
+possible. This week if you can.
+
+It is likely nothing serious but there
+is a type of skin condition called
+acral melanoma that can appear exactly
+this way on darker skin tones,
+specifically under nails and on palms
+and soles. It is rare but it is the
+kind of thing that should never be
+left unchecked.
+
+Please do not wait on this one.
+Shall I show you available
+dermatologists who can see you?"
+
+---
+
+RULE REMINDER — always extracted from
+these examples:
+1. Name the condition in bold on first mention
+2. Explain in plain language why you
+   think it is that condition
+3. Give numbered treatment steps with
+   specific products available in Nigeria
+4. End with one follow-up question
+   or a clear next step
+5. Never list more than one question
+6. Never repeat a previous response
+7. Never ask for info already given
+"""
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # MOCK RESPONSES (when no Gemini API key)
@@ -423,31 +564,56 @@ async def _gemini_response(
         system_prompt += "\n\nVOICE MODE: Shorten responses to 3-5 sentences. No bullet points, no markdown bold, no numbered lists. Use natural spoken transitions. End with a clear question. Spell out numbers for natural speech."
 
     # Build conversation history for Gemini
-    contents = []
-
+    gemini_history = []
     for msg in history:
         role = "user" if msg["role"] == "user" else "model"
+        if not gemini_history and role == "model":
+            continue
+        gemini_history.append({"role": role, "parts": [msg["content"]]})
 
-        # Gemini requires the conversation to start with 'user'
-        if not contents and role == "model":
-            continue  # Skip assistant messages at the very start
+    # Inject system prompt as first conversation turn (reliable for multi-turn)
+    full_history = [
+        {
+            "role": "user",
+            "parts": [f"You are operating under these strict instructions. Follow them for the entire conversation:\n\n{system_prompt}\n\nConfirm you understand by saying 'Understood' only."]
+        },
+        {
+            "role": "model",
+            "parts": ["Understood."]
+        }
+    ]
+    for msg in gemini_history:
+        full_history.append(msg)
 
-        contents.append({"role": role, "parts": [msg["content"]]})
+    # Safety settings to prevent blocking legitimate medical queries
+    from google.generativeai.types import HarmCategory, HarmBlockThreshold
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    }
 
-    # Add current user message as a new user turn
-    contents.append({"role": "user", "parts": [message]})
-
-    model = genai.GenerativeModel(
-        "gemini-1.5-flash",
-        system_instruction=system_prompt,
+    generation_config = genai.GenerationConfig(
+        temperature=0.4,
+        top_p=0.8,
+        top_k=40,
+        max_output_tokens=1000,
     )
 
-    response = model.generate_content(
-        contents,
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-pro",
+        generation_config=generation_config,
+        safety_settings=safety_settings,
+    )
+
+    chat = model.start_chat(history=full_history)
+    gemini_response = chat.send_message(
+        message,
         generation_config={"response_mime_type": "application/json"}
     )
 
-    result = json.loads(response.text)
+    result = json.loads(gemini_response.text)
 
     # Ensure proper structure
     return {
