@@ -190,7 +190,7 @@ export default function Scanner() {
         width: '100%',
         maxWidth: 480,
         margin: '0 auto',
-        height: '100dvh',
+        height: '100vh',
         backgroundColor: '#0d0d0d',
         position: 'relative',
         overflow: 'hidden',

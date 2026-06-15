@@ -260,7 +260,7 @@ export default function DermChat() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100dvh',
+      height: '100vh',
       maxWidth: '480px',
       margin: '0 auto',
       backgroundColor: '#f9f5ef',

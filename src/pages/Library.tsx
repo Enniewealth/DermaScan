@@ -491,7 +491,7 @@ export default function Library() {
   return (
     <div style={{ 
       backgroundColor: '#f9f5ef', 
-      minHeight: '100dvh', 
+      minHeight: '100vh',
       width: '100%', 
       fontFamily: "'Outfit', 'Inter', system-ui, -apple-system, sans-serif",
       paddingBottom: '96px',

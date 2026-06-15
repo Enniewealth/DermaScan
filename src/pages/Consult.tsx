@@ -242,7 +242,7 @@ export default function Consult() {
   };
 
   return (
-    <div className="page-enter" style={{ maxWidth: '480px', margin: '0 auto', padding: '16px 16px 96px 16px', minHeight: '100dvh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+    <div className="page-enter" style={{ maxWidth: '480px', margin: '0 auto', padding: '16px 16px 96px 16px', minHeight: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       
       {/* ----------------- STEP 0: SPECIALISTS LISTING ----------------- */}
       {bookingStep === 0 && (
