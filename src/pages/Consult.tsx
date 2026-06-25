@@ -516,7 +516,7 @@ export default function Consult() {
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <div style={{ width: '72px', height: '72px', borderRadius: '12px', overflow: 'hidden', background: '#E5E7EB', flexShrink: 0 }}>
                   <img
-                    src={latestScan.imageUrl.startsWith('http') ? latestScan.imageUrl : `http://${window.location.hostname}:8000${latestScan.imageUrl}`}
+                    src={latestScan.imageUrl.startsWith('http') ? latestScan.imageUrl : `http://127.0.0.1:8000${latestScan.imageUrl}`}
                     alt={latestScan.condition.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />

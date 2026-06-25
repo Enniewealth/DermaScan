@@ -581,7 +581,7 @@ export default function History() {
                       }}>
                         {scan.imageUrl ? (
                           <img
-                            src={scan.imageUrl.startsWith('http') ? scan.imageUrl : `http://${window.location.hostname}:8000${scan.imageUrl}`}
+                            src={scan.imageUrl.startsWith('http') ? scan.imageUrl : `http://127.0.0.1:8000${scan.imageUrl}`}
                             alt="Scan thumbnail"
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
